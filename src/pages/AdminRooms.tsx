@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   roomSchema,
   type RoomFormData,
@@ -24,28 +25,40 @@ export function AdminRooms() {
     reset,
     setValue,
     formState: { errors },
-  } = useForm<RoomFormData>({
+  } = useForm<z.input<typeof roomSchema>, object, RoomFormData>({
     resolver: zodResolver(roomSchema),
   });
 
   // 4. Qué pasa cuando Zod aprueba el formulario
   const onSubmit = async (data: RoomFormData) => {
-    // Transformamos el string de amenidades en un array real para la API
-    const amenitiesArray = data.amenities.split(",").map((item) => item.trim());
+    try {
+      // Transformamos el string de amenidades en un array real para la API
+      const amenitiesArray = data.amenities
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
 
-    const roomPayload = {
-      ...data,
-      amenities: amenitiesArray,
-    };
+      const roomPayload = {
+        ...data,
+        amenities: amenitiesArray,
+      };
 
-    if (idEditando) {
-      await editarRoom(idEditando, roomPayload);
-      setIdEditando(null);
-    } else {
-      await agregarRoom(roomPayload);
+      if (idEditando) {
+        await editarRoom(idEditando, roomPayload);
+        setIdEditando(null);
+      } else {
+        await agregarRoom(roomPayload);
+      }
+
+      reset(); // RHF limpia los inputs mágicamente
+    } catch (error) {
+      console.error(error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error al guardar la suite",
+      );
     }
-
-    reset(); // RHF limpia los inputs mágicamente
   };
 
   // 5. Preparar la edición cuando hacen clic en el ícono ✏️
